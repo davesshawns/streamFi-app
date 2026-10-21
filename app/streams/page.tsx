@@ -102,7 +102,12 @@ function StreamsView() {
   const [statusFilter, setStatusFilter] = useState<"ALL" | StreamStatus>(() =>
     statusFromParam(searchParams.get("status")),
   );
-  const [tokenFilter, setTokenFilter] = useState<string>(() => searchParams.get("token") ?? "ALL");
+  const [tokenFilter, setTokenFilter] = useState<string[]>(() => {
+    const raw = searchParams.get("token");
+    if (!raw) return [];
+    if (raw === "ALL") return [];
+    return raw.split(",");
+  });
   const [sort, setSort] = useState<SortKey>(() => {
     const s = searchParams.get("sort");
     return isSortKey(s) ? s : "default";
@@ -116,7 +121,8 @@ function StreamsView() {
     const params = new URLSearchParams();
     if (tab !== "receiving") params.set("tab", tab);
     if (statusFilter !== "ALL") params.set("status", statusFilter);
-    if (tokenFilter !== "ALL") params.set("token", tokenFilter);
+    if (tokenFilter.length === 0) params.delete("token");
+    else params.set("token", tokenFilter.join(","));
     if (sort !== "default") params.set("sort", sort);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
@@ -206,7 +212,7 @@ function StreamsView() {
     baseRows.filter(
       (row) =>
         (statusFilter === "ALL" || row.status === statusFilter) &&
-        (tokenFilter === "ALL" || row.info.token === tokenFilter),
+        (tokenFilter.length === 0 || tokenFilter.includes(row.info.token)),
     ),
     sort,
   );
@@ -289,7 +295,7 @@ function StreamsView() {
               onClick={() => {
                 if (t !== tab) {
                   setSelected([]);
-                  setTokenFilter("ALL");
+                  setTokenFilter([]);
                 }
                 setTab(t);
               }}
@@ -319,8 +325,12 @@ function StreamsView() {
           </select>
           <select
             aria-label="Filter by token"
-            value={tokenFilter}
-            onChange={(e) => setTokenFilter(e.target.value)}
+            multiple
+            onChange={(e) => {
+              const select = e.target as HTMLSelectElement;
+              const selected = Array.from(select.selectedOptions).map((o) => o.value);
+              setTokenFilter(selected.includes("ALL") ? [] : selected);
+            }}
             className="border-gray-300 dark:border-gray-700 border py-1 px-2 text-sm rounded bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm"
           >
             <option value="ALL">All Tokens</option>
